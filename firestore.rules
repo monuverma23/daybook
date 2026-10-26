@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/expenses/{expenseId} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function validExpense() {
+        return request.resource.data.keys().hasAll(['title', 'amount', 'category', 'date'])
+          && request.resource.data.keys().hasOnly(['title', 'amount', 'category', 'date'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 80
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.category in [
+            'Food & drink', 'Transport', 'Shopping', 'Bills',
+            'Health', 'Entertainment', 'Other'
+          ]
+          && request.resource.data.date is string
+          && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      allow read: if isOwner();
+      allow create, update: if isOwner() && validExpense();
+      allow delete: if isOwner();
+    }
+  }
+}
